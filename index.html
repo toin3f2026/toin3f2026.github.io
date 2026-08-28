@@ -429,6 +429,13 @@
   </div>
 </div>
 
+<!-- ============ IDLE TIMEOUT NOTICE (客用画面・パスワード画面専用) ============ -->
+<div id="idleOverlay" class="modal-overlay hidden" style="cursor:pointer;" onclick="App.registerActivity()">
+  <div class="modal-box" style="text-align:center;">
+    <div class="modal-message">しばらく操作がなかったため、通信を一時停止しました。<br>画面をタップすると再開します。</div>
+  </div>
+</div>
+
 <script>
 // ============================================================
 // Firebase 設定（★ここをご自身のFirebaseプロジェクトの値に書き換えてください）
@@ -463,11 +470,46 @@ const App = {
   lastSearchedTicket:null,
   pollTimer:null,
 
+  // ---------- 客用画面／パスワード画面のアイドルタイムアウト ----------
+  // 3分間操作がない場合、Firebaseとの接続(goOffline)を切ってデータベース保護を図る。
+  // この処理は客用画面・パスワード画面のときだけ動作する（店側管理画面などでは動作しない）。
+  IDLE_LIMIT_MS: 3*60*1000,
+  idleTimer:null,
+  dbOffline:false,
+
+  registerActivity(){
+    if(this.dbOffline) this.reconnectDb();
+    this.scheduleIdleCheck();
+  },
+  scheduleIdleCheck(){
+    clearTimeout(this.idleTimer);
+    if(this.view==='customer' || this.view==='password'){
+      this.idleTimer = setTimeout(()=>this.disconnectDb(), this.IDLE_LIMIT_MS);
+    }
+  },
+  disconnectDb(){
+    if(this.dbOffline) return;
+    if(this.view!=='customer' && this.view!=='password') return;
+    try{ db.goOffline(); }catch(e){}
+    this.dbOffline = true;
+    document.getElementById('idleOverlay').classList.remove('hidden');
+  },
+  reconnectDb(){
+    if(!this.dbOffline) return;
+    try{ db.goOnline(); }catch(e){}
+    this.dbOffline = false;
+    document.getElementById('idleOverlay').classList.add('hidden');
+  },
+
   async init(){
     this.buildAtmosphere('starsC','lanternsC');
     this.buildAtmosphere('starsD','lanternsD');
     await this.loadSheetsFromStorage();
     this.go('customer');
+    this.scheduleIdleCheck();
+    ['click','keydown','touchstart'].forEach(ev=>{
+      document.addEventListener(ev, ()=>this.registerActivity(), {passive:true});
+    });
     setInterval(()=>this.backgroundRefresh(), 4000);
   },
 
@@ -497,6 +539,7 @@ const App = {
       const ok = await this.showConfirm('保存されていない変更があります。保存せずに移動しますか？');
       if(!ok) return;
     }
+    if(this.dbOffline) this.reconnectDb();
     this.view = view;
     ['customer','password','select','staff','display'].forEach(v=>{
       document.getElementById('view-'+v).classList.toggle('hidden', v!==view);
@@ -508,9 +551,11 @@ const App = {
     }
     if(view==='staff'){ this.refreshStaffScreen(); }
     if(view==='display'){ this.refreshDisplayScreen(); }
+    this.scheduleIdleCheck();
   },
 
   checkPassword(){
+    this.registerActivity();
     const val = document.getElementById('pwInput').value;
     if(val === ADMIN_PASSWORD){
       this.go('select');
@@ -557,6 +602,7 @@ const App = {
   },
 
   async backgroundRefresh(){
+    if(this.dbOffline) return; // アイドルタイムアウトで切断中は通信しない
     if(this.view==='display'){ this.refreshDisplayScreen(); }
     if(this.view==='staff'){ this.syncStaffFromStorage(); }
     if(this.view==='customer' && this.lastSearchedTicket!==null){
@@ -589,6 +635,8 @@ const App = {
 
   // ---------- CUSTOMER ----------
   async customerSearch(silent){
+    if(!silent) this.registerActivity();
+    if(silent && this.dbOffline) return;
     const input = document.getElementById('custTicketInput');
     const raw = silent ? this.lastSearchedTicket : input.value;
     const resultEl = document.getElementById('custResult');
@@ -888,6 +936,8 @@ document.getElementById('custTicketInput').addEventListener('keydown', e=>{
 document.getElementById('pwInput').addEventListener('keydown', e=>{
   if(e.key==='Enter') App.checkPassword();
 });
+document.getElementById('custTicketInput').addEventListener('input', ()=>App.registerActivity());
+document.getElementById('pwInput').addEventListener('input', ()=>App.registerActivity());
 
 App.init();
 </script>
