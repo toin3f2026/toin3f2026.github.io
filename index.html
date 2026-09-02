@@ -106,6 +106,18 @@
   }
   .admin-link:hover{background:rgba(255,255,255,.22);}
 
+  .disclaimer-link{
+    position:relative; z-index:2;
+    display:block;
+    margin:-16px auto 30px;
+    background:none; border:none;
+    color:#D9D2F5;
+    font-size:11px;
+    text-decoration:underline;
+    opacity:.75;
+  }
+  .disclaimer-link:hover{opacity:1;}
+
   .panel{
     position:relative; z-index:2;
     width:min(92vw, 420px);
@@ -326,6 +338,7 @@
     </div>
     <div id="custResult"></div>
   </div>
+  <button class="disclaimer-link" onclick="App.go('terms')">免責事項</button>
 </div>
 
 <!-- ============ PASSWORD SCREEN ============ -->
@@ -359,6 +372,23 @@
       <span class="t">店頭表示用画面</span>
       <span class="d">受け取り可能な整理券番号を大きく表示します</span>
     </button>
+  </div>
+</div>
+
+<!-- ============ TERMS / DISCLAIMER SCREEN ============ -->
+<div id="view-terms" class="plain-wrap hidden">
+  <div class="top-bar" style="max-width:480px;">
+    <button class="back-link" onclick="App.go('customer')">← 客側画面に戻る</button>
+  </div>
+  <div class="plain-card" style="width:min(92vw, 480px); text-align:left;">
+    <h2 class="plain-title">免責事項</h2>
+    <ul style="margin:0; padding-left:20px; font-size:14px; line-height:1.9; color:var(--ink-soft);">
+      <li>通信状況やシステムの都合により、画面の表示内容が実際の状況と異なる場合があります。正式な状況はカウンターにてご確認ください。</li>
+      <li>メンテナンスや通信環境の状況により、予告なく本サイトをご利用いただけない場合があります。</li>
+      <li>本サイトでは、お客様個人を特定する情報（氏名・連絡先など）は一切取得しておりません。整理券番号および注文内容のみを扱っています。</li>
+      <li>本サイトはGoogle社が提供するFirebaseを利用してデータを保存しています。</li>
+      <li>本サイトのソースコードはGitHub上で公開されており、どなたでも中身をご確認いただけます。運営者が不正な処理を隠して行うことのできない、透明性のある仕組みで運営しています。</li>
+    </ul>
   </div>
 </div>
 
@@ -541,7 +571,7 @@ const App = {
     }
     if(this.dbOffline) this.reconnectDb();
     this.view = view;
-    ['customer','password','select','staff','display'].forEach(v=>{
+    ['customer','password','select','staff','display','terms'].forEach(v=>{
       document.getElementById('view-'+v).classList.toggle('hidden', v!==view);
     });
     if(view==='password'){
