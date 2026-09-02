@@ -259,6 +259,10 @@
   .small-btn{padding:8px 14px; border-radius:6px; border:1.5px solid #DCD5C4; background:#F8F5EC; font-size:13px; font-weight:700; color:var(--ink);}
   .small-btn:hover{background:#EFE9D8;}
   .small-btn.gold{background:var(--lantern-warm); border-color:#E0973A; color:#3A2200;}
+  .small-btn.danger{background:#FBEAEE; border-color:#E7B7C2; color:var(--rose);}
+  .small-btn.danger:hover{background:#F6D6DF;}
+  .small-btn:disabled{opacity:.45; cursor:not-allowed;}
+  .small-btn:disabled:hover{background:#F8F5EC;}
   .staff-save-fixed{
     position:fixed; top:14px; right:14px; z-index:60;
     display:flex; flex-direction:column; align-items:flex-end; gap:4px;
@@ -274,6 +278,15 @@
   }
   .btn-save-big:active{transform:translateY(2px); box-shadow:0 2px 0 #2E6B47;}
   .active-tag{font-size:12px; background:#E6F3EA; color:var(--leaf); padding:5px 10px; border-radius:20px; font-weight:700;}
+  .sheet-total-bar{font-size:14px; color:var(--ink-soft); margin-bottom:14px; padding:0 2px;}
+  .sheet-total-amount{font-family:var(--font-mono); font-weight:700; font-size:18px; color:var(--rose);}
+
+  .kitchen-clock{font-family:var(--font-mono); font-weight:700; font-size:20px; color:var(--ink); letter-spacing:.02em;}
+  .kitchen-summary{display:flex; gap:14px; flex-wrap:wrap; margin-bottom:22px;}
+  .kitchen-card{flex:1; min-width:150px; background:#fff; border:1px solid #ECE6D8; border-radius:12px; padding:18px 10px; text-align:center;}
+  .kitchen-card .name{font-size:13px; color:var(--ink-soft); margin-bottom:8px; font-weight:700;}
+  .kitchen-card .count{font-family:var(--font-mono); font-weight:800; font-size:36px; color:var(--rose); line-height:1;}
+  .kitchen-card .unit{font-size:12px; color:var(--ink-soft); margin-left:2px;}
 
   table.order-table{width:100%; border-collapse:collapse; background:#fff; border:1px solid #ECE6D8; border-radius:10px; overflow:hidden; font-size:13px;}
   table.order-table th{background:#F6F2E7; padding:10px 6px; font-size:12px; color:var(--ink-soft); border-bottom:1.5px solid #ECE6D8; white-space:nowrap;}
@@ -372,6 +385,10 @@
       <span class="t">店頭表示用画面</span>
       <span class="d">受け取り可能な整理券番号を大きく表示します</span>
     </button>
+    <button class="choice-btn" onclick="App.go('kitchen')">
+      <span class="t">厨房表示用画面</span>
+      <span class="d">お作り中の注文と、商品ごとの必要数を表示します</span>
+    </button>
   </div>
 </div>
 
@@ -383,7 +400,6 @@
   <div class="plain-card" style="width:min(92vw, 480px); text-align:left;">
     <h2 class="plain-title">免責事項</h2>
     <ul style="margin:0; padding-left:20px; font-size:14px; line-height:1.9; color:var(--ink-soft);">
-      <li>この、リポジトリのソースコードは、Anthropic社のAIアシスタント「Claude」の支援を受けて作成されました。</li>
       <li>通信状況やシステムの都合により、画面の表示内容が実際の状況と異なる場合があります。正式な状況はカウンターにてご確認ください。</li>
       <li>メンテナンスや通信環境の状況により、予告なく本サイトをご利用いただけない場合があります。</li>
       <li>本サイトでは、お客様個人を特定する情報（氏名・連絡先など）は一切取得しておりません。整理券番号および注文内容のみを扱っています。</li>
@@ -410,8 +426,10 @@
       <select id="sheetSelect" class="sheet-select" onchange="App.onSheetChange()"></select>
       <button class="small-btn" onclick="App.createSheet()">＋ シートを追加</button>
       <button class="small-btn gold" id="reflectBtn" onclick="App.selectReflectSheet()">このシートを反映する</button>
+      <button class="small-btn danger" id="deleteSheetBtn" onclick="App.deleteSheet()">このシートを削除</button>
       <span id="activeTag" class="active-tag hidden">反映中のシート</span>
     </div>
+    <div class="sheet-total-bar">このシートの合計金額：<span id="sheetTotal" class="sheet-total-amount">¥0</span></div>
     <div class="table-scroll">
       <table class="order-table">
         <thead>
@@ -446,6 +464,27 @@
   </div>
   <div id="displayGrid" class="display-grid"></div>
   <div id="displayEmpty" class="display-empty hidden">現在お呼び出し中の番号はありません</div>
+</div>
+
+<!-- ============ KITCHEN SCREEN ============ -->
+<div id="view-kitchen" class="plain-wrap hidden">
+  <div class="top-bar" style="max-width:900px;">
+    <button class="back-link" onclick="App.go('select')">← 選択画面に戻る</button>
+    <span style="font-family:var(--font-display); font-weight:700; font-size:20px;">厨房表示</span>
+    <span id="kitchenClock" class="kitchen-clock">--:--:--</span>
+  </div>
+  <div class="staff-wrap" style="max-width:900px; padding-right:0;">
+    <div class="kitchen-summary" id="kitchenSummary"></div>
+    <div class="table-scroll">
+      <table class="order-table">
+        <thead>
+          <tr><th>整理券番号</th><th>発行日時</th></tr>
+        </thead>
+        <tbody id="kitchenTbody"></tbody>
+      </table>
+      <div id="kitchenEmpty" class="empty-note hidden">現在お作り中の注文はありません</div>
+    </div>
+  </div>
 </div>
 
 <!-- ============ CUSTOM MODAL (prompt / confirm replacement) ============ -->
@@ -542,6 +581,7 @@ const App = {
       document.addEventListener(ev, ()=>this.registerActivity(), {passive:true});
     });
     setInterval(()=>this.backgroundRefresh(), 4000);
+    setInterval(()=>{ if(this.view==='kitchen') this.updateKitchenClock(); }, 1000);
   },
 
   buildAtmosphere(starsId, lanternsId){
@@ -572,7 +612,7 @@ const App = {
     }
     if(this.dbOffline) this.reconnectDb();
     this.view = view;
-    ['customer','password','select','staff','display','terms'].forEach(v=>{
+    ['customer','password','select','staff','display','terms','kitchen'].forEach(v=>{
       document.getElementById('view-'+v).classList.toggle('hidden', v!==view);
     });
     if(view==='password'){
@@ -582,6 +622,7 @@ const App = {
     }
     if(view==='staff'){ this.refreshStaffScreen(); }
     if(view==='display'){ this.refreshDisplayScreen(); }
+    if(view==='kitchen'){ this.updateKitchenClock(); this.refreshKitchenScreen(); }
     this.scheduleIdleCheck();
   },
 
@@ -635,6 +676,7 @@ const App = {
   async backgroundRefresh(){
     if(this.dbOffline) return; // アイドルタイムアウトで切断中は通信しない
     if(this.view==='display'){ this.refreshDisplayScreen(); }
+    if(this.view==='kitchen'){ this.refreshKitchenScreen(); }
     if(this.view==='staff'){ this.syncStaffFromStorage(); }
     if(this.view==='customer' && this.lastSearchedTicket!==null){
       this.customerSearch(true);
@@ -753,6 +795,13 @@ const App = {
     document.getElementById('activeTag').classList.toggle('hidden', !isActive);
     document.getElementById('reflectBtn').textContent = isActive ? '反映中です' : 'このシートを反映する';
     document.getElementById('reflectBtn').disabled = isActive;
+    // 反映中のシート、または唯一残っているシートは削除できない。
+    document.getElementById('deleteSheetBtn').disabled = isActive || this.sheets.length<=1;
+  },
+
+  updateSheetTotalDisplay(){
+    const sum = this.currentOrders.reduce((s,o)=>s+(o.total||0), 0);
+    document.getElementById('sheetTotal').textContent = '¥'+sum;
   },
 
   setStaffStatus(text, isWarning){
@@ -789,10 +838,12 @@ const App = {
     if(this.currentOrders.length===0){
       tbody.innerHTML='';
       emptyNote.classList.remove('hidden');
+      this.updateSheetTotalDisplay();
       return;
     }
     emptyNote.classList.add('hidden');
     tbody.innerHTML = this.currentOrders.map(o=>this.rowHtml(o)).join('');
+    this.updateSheetTotalDisplay();
   },
 
   computeTotal(o){
@@ -813,6 +864,7 @@ const App = {
     this.currentOrders.push(o);
     document.getElementById('emptyNote').classList.add('hidden');
     document.getElementById('orderTbody').insertAdjacentHTML('beforeend', this.rowHtml(o));
+    this.updateSheetTotalDisplay();
     this.markDirty();
   },
 
@@ -827,6 +879,7 @@ const App = {
     btnEl.classList.toggle('has-qty', o[key]>0);
     const row = btnEl.closest('tr');
     if(row) row.querySelector('.total-cell').textContent = '¥'+o.total;
+    this.updateSheetTotalDisplay();
     this.markDirty();
   },
 
@@ -844,6 +897,7 @@ const App = {
     const row = document.querySelector(`#orderTbody tr[data-ticket="${ticket}"]`);
     if(row) row.remove();
     if(this.currentOrders.length===0) document.getElementById('emptyNote').classList.remove('hidden');
+    this.updateSheetTotalDisplay();
     this.markDirty();
   },
 
@@ -862,6 +916,33 @@ const App = {
     this.selectedSheetId = id;
     this.activeSheetId = id;
     await this.storageSet('activeSheetId', id);
+    await this.refreshStaffScreen();
+  },
+
+  // このシートを削除：反映中のシートは削除できない。削除前に必ず確認を行う。
+  async deleteSheet(){
+    if(this.selectedSheetId === this.activeSheetId){
+      await this.showConfirm('反映中のシートは削除できません。\n先に他のシートを反映してから削除してください。');
+      return;
+    }
+    if(this.sheets.length<=1){
+      await this.showConfirm('シートは最低1つ必要なため、これ以上削除できません。');
+      return;
+    }
+    const target = this.sheets.find(s=>s.id===this.selectedSheetId);
+    const name = target ? target.name : this.selectedSheetId;
+    const ok = await this.showConfirm(`「${name}」を削除しますか？\nこのシートの注文データはすべて失われ、元に戻せません。`);
+    if(!ok) return;
+
+    const deletedId = this.selectedSheetId;
+    this.sheets = this.sheets.filter(s=>s.id!==deletedId);
+    await this.storageSet('sheets', this.sheets);
+    await this.storageSet('orders_'+deletedId, null);
+
+    // 削除後は、反映中のシート（なければ先頭のシート）を開き直す。
+    this.selectedSheetId = this.sheets.some(s=>s.id===this.activeSheetId)
+      ? this.activeSheetId
+      : this.sheets[0].id;
     await this.refreshStaffScreen();
   },
 
@@ -908,6 +989,48 @@ const App = {
     } else {
       empty.classList.add('hidden');
       grid.innerHTML = ready.map(o=>`<div class="display-card"><div class="num">${o.ticket}</div></div>`).join('');
+    }
+  },
+
+  // ---------- KITCHEN ----------
+  updateKitchenClock(){
+    const el = document.getElementById('kitchenClock');
+    if(el) el.textContent = new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  },
+
+  async refreshKitchenScreen(){
+    const sheets = await this.storageGet('sheets');
+    const activeId = await this.storageGet('activeSheetId');
+    if(sheets) this.sheets = sheets;
+    if(activeId) this.activeSheetId = activeId;
+    const orders = await this.loadOrders(this.activeSheetId);
+    // 「お作り中」＝完成していない注文
+    const preparing = orders.filter(o=>!o.completed).sort((a,b)=>a.ticket-b.ticket);
+
+    // 商品ごとの必要個数（お作り中の注文の合計）
+    const totals = {meat:0, carb:0, jelly:0};
+    preparing.forEach(o=>{
+      totals.meat += o.meat||0;
+      totals.carb += o.carb||0;
+      totals.jelly += o.jelly||0;
+    });
+    document.getElementById('kitchenSummary').innerHTML = MENU.map(m=>
+      `<div class="kitchen-card"><div class="name">${this.escapeHtml(m.name)}</div><div class="count">${totals[m.key]}<span class="unit">個</span></div></div>`
+    ).join('');
+
+    // お作り中の整理券番号と発行日時の一覧
+    const tbody = document.getElementById('kitchenTbody');
+    const emptyNote = document.getElementById('kitchenEmpty');
+    if(preparing.length===0){
+      tbody.innerHTML='';
+      emptyNote.classList.remove('hidden');
+    } else {
+      emptyNote.classList.add('hidden');
+      tbody.innerHTML = preparing.map(o=>{
+        const dt = new Date(o.orderTime);
+        const dtStr = isNaN(dt.getTime()) ? '' : dt.toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+        return `<tr><td class="num-cell">${o.ticket}</td><td>${dtStr}</td></tr>`;
+      }).join('');
     }
   },
 
