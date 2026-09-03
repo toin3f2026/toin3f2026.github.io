@@ -404,7 +404,6 @@
       <li>メンテナンスや通信環境の状況により、予告なく本サイトをご利用いただけない場合があります。</li>
       <li>本サイトでは、お客様個人を特定する情報（氏名・連絡先など）は一切取得しておりません。整理券番号および注文内容のみを扱っています。</li>
       <li>本サイトはGoogle社が提供するFirebaseを利用してデータを保存しています。</li>
-      <li>このサイトのソースコードは、Anthropic社のAIアシスタント「Claude」の支援を受けて作成されました。 </li>
       <li>本サイトのソースコードはGitHub上で公開されており、どなたでも中身をご確認いただけます。運営者が不正な処理を隠して行うことのできない、透明性のある仕組みで運営しています。</li>
     </ul>
   </div>
@@ -500,7 +499,7 @@
   </div>
 </div>
 
-<!-- ============ IDLE TIMEOUT NOTICE (客用画面・パスワード画面専用) ============ -->
+<!-- ============ IDLE TIMEOUT NOTICE (客用画面・パスワード画面・免責事項画面専用) ============ -->
 <div id="idleOverlay" class="modal-overlay hidden" style="cursor:pointer;" onclick="App.registerActivity()">
   <div class="modal-box" style="text-align:center;">
     <div class="modal-message">しばらく操作がなかったため、通信を一時停止しました。<br>画面をタップすると再開します。</div>
@@ -543,7 +542,7 @@ const App = {
 
   // ---------- 客用画面／パスワード画面のアイドルタイムアウト ----------
   // 3分間操作がない場合、Firebaseとの接続(goOffline)を切ってデータベース保護を図る。
-  // この処理は客用画面・パスワード画面のときだけ動作する（店側管理画面などでは動作しない）。
+  // この処理は客用画面・パスワード画面・免責事項画面のときだけ動作する（店側管理画面などでは動作しない）。
   IDLE_LIMIT_MS: 3*60*1000,
   idleTimer:null,
   dbOffline:false,
@@ -554,13 +553,13 @@ const App = {
   },
   scheduleIdleCheck(){
     clearTimeout(this.idleTimer);
-    if(this.view==='customer' || this.view==='password'){
+    if(this.view==='customer' || this.view==='password' || this.view==='terms'){
       this.idleTimer = setTimeout(()=>this.disconnectDb(), this.IDLE_LIMIT_MS);
     }
   },
   disconnectDb(){
     if(this.dbOffline) return;
-    if(this.view!=='customer' && this.view!=='password') return;
+    if(this.view!=='customer' && this.view!=='password' && this.view!=='terms') return;
     try{ db.goOffline(); }catch(e){}
     this.dbOffline = true;
     document.getElementById('idleOverlay').classList.remove('hidden');
