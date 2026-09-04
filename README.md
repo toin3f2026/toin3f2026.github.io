@@ -96,4 +96,4 @@ const ADMIN_PASSWORD = '3f2026';
 
 [MIT License](./LICENSE) のもとで公開しています。商用・非商用問わず、自由に利用・改変・再配布いただけます。
 
-Copyright (c) 2026 [ toin3f2026 / 塔 in Fantasy ]
+Copyright (c) 2026 [ toin3f2026 / 塔 in Fantasy 〜魔法のキッチン〜 ]
